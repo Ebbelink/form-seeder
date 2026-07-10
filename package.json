@@ -5,7 +5,8 @@
   "scripts": {
     "build": "webpack --mode production",
     "dev": "webpack --mode development --watch",
-    "package": "cd dist && Compress-Archive -Path . -DestinationPath ../form-seeder.zip"
+    "package": "cd dist && Compress-Archive -Path . -DestinationPath ../form-seeder.zip",
+    "package:ci": "cd dist && zip -r ../form-seeder.zip ."
   },
   "devDependencies": {
     "@types/chrome": "^0.0.268",

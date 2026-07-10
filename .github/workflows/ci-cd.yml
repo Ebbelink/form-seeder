@@ -73,7 +73,7 @@ jobs:
         run: npm run build
 
       - name: Package extension
-        run: npm run package
+        run: npm run package:ci
 
       - name: Validate PRD environment key availability
         run: |
