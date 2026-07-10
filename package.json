@@ -3,8 +3,6 @@
   "version": "1.0.0",
   "description": "Configurable form seeder Chrome extension - fill forms with random or configured data",
   "scripts": {
-    "generate-icons": "node scripts/generate-icons.js",
-    "prebuild": "npm run generate-icons",
     "build": "webpack --mode production",
     "dev": "webpack --mode development --watch",
     "package": "cd dist && zip -r ../form-seeder.zip ."
