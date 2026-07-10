@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Form Seeder</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app">
+
+    <header class="header">
+      <div class="header-brand">
+        <img src="icons/icon48.png" alt="" class="header-logo" width="22" height="22">
+        <span class="header-title">Form Seeder</span>
+      </div>
+      <div class="header-actions">
+        <button id="btnExport" class="btn-icon" title="Export config as JSON">
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M10 3v10M6 9l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M4 15h12" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button id="btnImport" class="btn-icon" title="Import config from JSON">
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M10 14V4M6 8l4-4 4 4" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M4 15h12" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="main">
+      <div id="stateLoading" class="state-msg">Scanning for forms…</div>
+      <div id="stateNoForms" class="state-msg" hidden>No forms found on this page.</div>
+      <div id="stateError"   class="state-msg state-error" hidden></div>
+      <div id="formsList"    hidden></div>
+    </main>
+
+  </div>
+
+  <!-- Hidden file input for import -->
+  <input type="file" id="importFile" accept=".json" style="display:none">
+
+  <script src="popup.js"></script>
+</body>
+</html>
