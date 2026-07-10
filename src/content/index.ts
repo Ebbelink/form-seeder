@@ -8,12 +8,12 @@
  * - Watch for dynamically added forms via MutationObserver.
  */
 
-import { injectOverlay } from './formOverlay';
-import { fillFormRandom, fillFormWithValues, getCurrentFormValues } from './formFiller';
+import { FormConfig } from '../types/config';
+import { FormFieldInfo, FormInfo, MessageRequest, MessageResponse } from '../types/messages';
 import { getFormConfig } from '../utils/configManager';
 import { generateFormId, getFieldKey } from '../utils/formId';
-import { FormInfo, FormFieldInfo, MessageRequest, MessageResponse } from '../types/messages';
-import { FormConfig } from '../types/config';
+import { fillFormRandom, fillFormWithValues, getCurrentFormValues } from './formFiller';
+import { injectOverlay } from './formOverlay';
 
 // ─── Form introspection ───────────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ async function processForm(form: HTMLFormElement, index: number): Promise<void> 
   const formId  = generateFormId(urlKey, index, tokens);
   const config  = await getFormConfig(formId);
 
-  injectOverlay(form, config);
+  injectOverlay(form, config, formId, index, urlKey);
 
   if (config?.autoSeed) {
     fillFormRandom(form, config);

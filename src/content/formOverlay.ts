@@ -3,29 +3,55 @@
  * detected form.  Clicking the button opens a context menu with fill options.
  */
 
-import { FormConfig } from '../types/config';
-import { fillFormRandom, fillFormWithValues } from './formFiller';
+import { FieldConfig, FormConfig, NamedFill } from '../types/config';
+import { saveFormConfig, upsertNamedFill } from '../utils/configManager';
+import { getFieldKey } from '../utils/formId';
+import { fillFormRandom, fillFormWithValues, getCurrentFormValues } from './formFiller';
 
 const INJECTED_ATTR = 'data-fs-injected';
 
-// ─── SVG icon (inline, 20×20) ─────────────────────────────────────────────────
+const ICON_URL = (globalThis as {
+  chrome?: { runtime?: { getURL?: (path: string) => string } };
+}).chrome?.runtime?.getURL?.('icons/form-seeder-icon.png') ?? 'icons/form-seeder-icon.png';
 
-const ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18">
-  <rect x="2" y="2" width="20" height="22" rx="2.5" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
-  <rect x="2" y="2" width="20" height="8" rx="2.5" fill="#2563eb"/>
-  <rect x="2" y="7" width="20" height="3" fill="#2563eb"/>
-  <rect x="5" y="13" width="14" height="2" rx="1" fill="#bfdbfe"/>
-  <rect x="5" y="17" width="9" height="2" rx="1" fill="#bfdbfe"/>
-  <line x1="17" y1="20" x2="17" y2="24" stroke="#15803d" stroke-width="1.5" stroke-linecap="round"/>
-  <path d="M17 22 C14 19 10 20 11 23 C13 21 16 21 17 22" fill="#16a34a"/>
-  <path d="M17 22 C20 19 24 20 23 23 C21 21 18 21 17 22" fill="#22c55e"/>
-</svg>`;
+const SKIP_INPUT_TYPES = new Set(['hidden', 'submit', 'reset', 'button', 'file', 'image']);
+
+type InteractiveField = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+
+function isInteractiveField(el: Element): el is InteractiveField {
+  return (
+    el instanceof HTMLInputElement ||
+    el instanceof HTMLSelectElement ||
+    el instanceof HTMLTextAreaElement
+  );
+}
+
+function buildDefaultFieldConfigs(form: HTMLFormElement): FieldConfig[] {
+  return Array.from(form.elements)
+    .filter(isInteractiveField)
+    .map((field, idx) => {
+      const type = field instanceof HTMLInputElement
+        ? field.type.toLowerCase()
+        : field.tagName.toLowerCase();
+      return { field, idx, type };
+    })
+    .filter(({ type }) => !SKIP_INPUT_TYPES.has(type))
+    .map(({ field, idx, type }) => ({
+      inputName: getFieldKey(field, idx),
+      inputType: type,
+    }));
+}
 
 // ─── Button ───────────────────────────────────────────────────────────────────
 
 function createButton(): HTMLDivElement {
   const btn        = document.createElement('div');
-  btn.innerHTML    = ICON_SVG;
+  const img        = document.createElement('img');
+  img.src          = ICON_URL;
+  img.alt          = 'Form Seeder';
+  img.style.width  = '18px';
+  img.style.height = '18px';
+  btn.appendChild(img);
   btn.title        = 'Form Seeder – click to fill this form';
   btn.setAttribute('data-fs', 'btn');
   btn.style.cssText = `
@@ -47,7 +73,7 @@ function createButton(): HTMLDivElement {
 
 // ─── Context menu ─────────────────────────────────────────────────────────────
 
-function createMenuButton(label: string, onClick: () => void): HTMLButtonElement {
+function createMenuButton(label: string, onClick: () => void | Promise<void>): HTMLButtonElement {
   const btn = document.createElement('button');
   btn.textContent = label;
   btn.style.cssText = `
@@ -61,10 +87,10 @@ function createMenuButton(label: string, onClick: () => void): HTMLButtonElement
   `;
   btn.addEventListener('mouseenter', () => { btn.style.background = '#f0f9ff'; });
   btn.addEventListener('mouseleave', () => { btn.style.background = 'none'; });
-  btn.addEventListener('click', (e) => {
+  btn.addEventListener('click', async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    onClick();
+    await onClick();
   });
   return btn;
 }
@@ -75,9 +101,26 @@ function createSeparator(): HTMLDivElement {
   return sep;
 }
 
+function createMenuLabel(label: string): HTMLDivElement {
+  const row = document.createElement('div');
+  row.textContent = label;
+  row.style.cssText = `
+    display:block; width:100%;
+    padding:7px 12px;
+    color:#475569; font-size:12px;
+    font-family:system-ui,-apple-system,sans-serif;
+    text-transform:uppercase; letter-spacing:.02em;
+  `;
+  return row;
+}
+
 function buildMenu(
   form: HTMLFormElement,
   formConfig: FormConfig | null,
+  formId: string,
+  formIndex: number,
+  urlPattern: string,
+  onConfigUpdated: (config: FormConfig) => void,
   onClose: () => void,
 ): HTMLDivElement {
   const menu = document.createElement('div');
@@ -99,22 +142,64 @@ function buildMenu(
     createMenuButton('🎲 Fill Random', () => { fillFormRandom(form, formConfig); close(); }),
   );
 
+  menu.appendChild(
+    createMenuButton('💾 Save current values as named fill', async () => {
+      const fillName = window.prompt('Enter a name for this fill:');
+      if (!fillName?.trim()) return;
+
+      const values = getCurrentFormValues(form);
+      const namedFill: NamedFill = { name: fillName.trim(), values };
+
+      const nextConfig: FormConfig = formConfig ?? {
+        id: formId,
+        urlPattern,
+        formIndex,
+        fields: buildDefaultFieldConfigs(form),
+        namedFills: [],
+        autoSeed: false,
+      };
+
+      if (!formConfig) {
+        nextConfig.namedFills.push(namedFill);
+        await saveFormConfig(nextConfig);
+      } else {
+        await upsertNamedFill(formId, namedFill);
+        const fillIdx = nextConfig.namedFills.findIndex(nf => nf.name === namedFill.name);
+        if (fillIdx >= 0) {
+          nextConfig.namedFills[fillIdx] = namedFill;
+        } else {
+          nextConfig.namedFills.push(namedFill);
+        }
+      }
+
+      onConfigUpdated(nextConfig);
+      close();
+    }),
+  );
+
   if (formConfig) {
     menu.appendChild(
       createMenuButton('🌱 Fill Seeded', () => { fillFormRandom(form, formConfig); close(); }),
     );
+  }
 
-    if (formConfig.namedFills.length > 0) {
-      menu.appendChild(createSeparator());
-      formConfig.namedFills.forEach(fill => {
-        menu.appendChild(
-          createMenuButton(`📋 ${fill.name}`, () => {
-            fillFormWithValues(form, fill.values);
-            close();
-          }),
-        );
-      });
-    }
+  menu.appendChild(createSeparator());
+  
+  const namedFills = formConfig?.namedFills ?? [];
+
+  if (namedFills.length === 0) {
+    menu.appendChild(createMenuLabel('No saved named fills'));
+  } else {
+    menu.appendChild(createMenuLabel('Fill named fill'));
+    // menu.appendChild(createSeparator());
+    namedFills.forEach(fill => {
+      menu.appendChild(
+        createMenuButton(`• ${fill.name}`, () => {
+          fillFormWithValues(form, fill.values);
+          close();
+        }),
+      );
+    });
   }
 
   return menu;
@@ -126,6 +211,9 @@ function buildMenu(
 export function injectOverlay(
   form: HTMLFormElement,
   formConfig: FormConfig | null,
+  formId: string,
+  formIndex: number,
+  urlPattern: string,
 ): void {
   if (form.hasAttribute(INJECTED_ATTR)) {
     // Update config on existing overlay (e.g. after config save)
@@ -151,7 +239,17 @@ export function injectOverlay(
 
     if (menu) { menu.remove(); menu = null; return; }
 
-    menu = buildMenu(form, currentConfig, () => { menu = null; });
+    menu = buildMenu(
+      form,
+      currentConfig,
+      formId,
+      formIndex,
+      urlPattern,
+      (nextConfig) => {
+        currentConfig = nextConfig;
+      },
+      () => { menu = null; },
+    );
     form.appendChild(menu);
 
     const onOutsideClick = (ev: MouseEvent) => {
