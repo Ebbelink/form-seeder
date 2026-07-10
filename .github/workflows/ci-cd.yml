@@ -1,0 +1,91 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - "**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-dev:
+    name: Build DEV extension
+    runs-on: ubuntu-latest
+    environment: DEV
+    env:
+      EXTENSION_KEY: ${{ secrets.EXTENSION_KEY }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Validate DEV environment key availability
+        run: |
+          if [ -n "$EXTENSION_KEY" ]; then
+            echo "DEV extension key is configured."
+          else
+            echo "DEV extension key is not configured yet."
+          fi
+
+      - name: Upload DEV unpacked extension artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-unpacked-extension-${{ github.sha }}
+          path: dist
+          if-no-files-found: error
+
+  build-prd:
+    name: Build PRD extension package
+    runs-on: ubuntu-latest
+    environment: PRD
+    env:
+      EXTENSION_KEY: ${{ secrets.EXTENSION_KEY }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Package extension
+        run: npm run package
+
+      - name: Validate PRD environment key availability
+        run: |
+          if [ -n "$EXTENSION_KEY" ]; then
+            echo "PRD extension key is configured."
+          else
+            echo "PRD extension key is not configured yet."
+          fi
+
+      - name: Upload PRD package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: prd-extension-package-${{ github.sha }}
+          path: form-seeder.zip
+          if-no-files-found: error
