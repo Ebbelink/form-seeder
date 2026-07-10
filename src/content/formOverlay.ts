@@ -3,12 +3,13 @@
  * detected form.  Clicking the button opens a context menu with fill options.
  */
 
-import { FieldConfig, FormConfig, NamedFill } from '../types/config';
-import { saveFormConfig, upsertNamedFill } from '../utils/configManager';
+import { saveNamedFill } from '../services/namedFillService';
+import { FieldConfig, FormConfig } from '../types/config';
 import { getFieldKey } from '../utils/formId';
 import { fillFormRandom, fillFormWithValues, getCurrentFormValues } from './formFiller';
 
 const INJECTED_ATTR = 'data-fs-injected';
+const OVERLAY_SELECTOR = '[data-fs="btn"], [data-fs="menu"]';
 
 const ICON_URL = (globalThis as {
   chrome?: { runtime?: { getURL?: (path: string) => string } };
@@ -148,29 +149,15 @@ function buildMenu(
       if (!fillName?.trim()) return;
 
       const values = getCurrentFormValues(form);
-      const namedFill: NamedFill = { name: fillName.trim(), values };
-
-      const nextConfig: FormConfig = formConfig ?? {
-        id: formId,
-        urlPattern,
+      const nextConfig = await saveNamedFill({
+        formId,
         formIndex,
-        fields: buildDefaultFieldConfigs(form),
-        namedFills: [],
-        autoSeed: false,
-      };
-
-      if (!formConfig) {
-        nextConfig.namedFills.push(namedFill);
-        await saveFormConfig(nextConfig);
-      } else {
-        await upsertNamedFill(formId, namedFill);
-        const fillIdx = nextConfig.namedFills.findIndex(nf => nf.name === namedFill.name);
-        if (fillIdx >= 0) {
-          nextConfig.namedFills[fillIdx] = namedFill;
-        } else {
-          nextConfig.namedFills.push(namedFill);
-        }
-      }
+        urlPattern,
+        currentConfig: formConfig,
+        defaultFields: buildDefaultFieldConfigs(form),
+        fillName,
+        values,
+      });
 
       onConfigUpdated(nextConfig);
       close();
@@ -275,4 +262,11 @@ export function updateOverlayConfig(
 ): void {
   const updater = (form as HTMLFormElement & { _fsUpdateConfig?: (c: FormConfig | null) => void })._fsUpdateConfig;
   if (updater) updater(formConfig);
+}
+
+/** Remove injected overlay UI from a form. */
+export function removeOverlay(form: HTMLFormElement): void {
+  form.querySelectorAll(OVERLAY_SELECTOR).forEach(node => node.remove());
+  form.removeAttribute(INJECTED_ATTR);
+  delete (form as HTMLFormElement & { _fsUpdateConfig?: (c: FormConfig | null) => void })._fsUpdateConfig;
 }

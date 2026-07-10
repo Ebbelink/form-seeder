@@ -8,58 +8,37 @@
  * - Watch for dynamically added forms via MutationObserver.
  */
 
+import { getFormConfigById } from '../services/configService';
+import { buildFormContext } from '../services/formContextService';
 import { FormConfig } from '../types/config';
 import { FormFieldInfo, FormInfo, MessageRequest, MessageResponse } from '../types/messages';
-import { getFormConfig } from '../utils/configManager';
-import { generateFormId, getFieldKey } from '../utils/formId';
 import { fillFormRandom, fillFormWithValues, getCurrentFormValues } from './formFiller';
-import { injectOverlay } from './formOverlay';
+import { injectOverlay, removeOverlay } from './formOverlay';
 
 // ─── Form introspection ───────────────────────────────────────────────────────
 
-function getInteractiveFields(
-  form: HTMLFormElement,
-): Array<{ el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement; key: string; type: string }> {
-  const SKIP = new Set(['hidden', 'submit', 'reset', 'button', 'file', 'image']);
-  return Array.from(form.elements)
-    .filter(el =>
-      el instanceof HTMLInputElement ||
-      el instanceof HTMLSelectElement ||
-      el instanceof HTMLTextAreaElement,
-    )
-    .map((el, idx) => {
-      const field = el as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
-      const key   = getFieldKey(field, idx);
-      const type  = field instanceof HTMLInputElement
-        ? field.type.toLowerCase()
-        : field.tagName.toLowerCase();
-      return { el: field, key, type };
-    })
-    .filter(({ type }) => !SKIP.has(type));
-}
-
 function buildFormInfo(form: HTMLFormElement, index: number, config: FormConfig | null): FormInfo {
-  const urlKey = window.location.hostname + window.location.pathname;
-  const fields = getInteractiveFields(form);
-  const tokens = fields.map(f => `${f.key}:${f.type}`);
-  const id     = generateFormId(urlKey, index, tokens);
+  const context = buildFormContext(form, index);
   const name   = form.id || form.name || `Form ${index + 1}`;
 
-  const fieldInfos: FormFieldInfo[] = fields.map(f => ({ name: f.key, type: f.type }));
+  const fieldInfos: FormFieldInfo[] = context.fields.map(f => ({ name: f.key, type: f.type }));
 
-  return { id, index, name, fieldCount: fields.length, fields: fieldInfos, config };
+  return { id: context.formId, index, name, fieldCount: context.fields.length, fields: fieldInfos, config };
 }
 
 // ─── Processing ───────────────────────────────────────────────────────────────
 
 async function processForm(form: HTMLFormElement, index: number): Promise<void> {
-  const urlKey  = window.location.hostname + window.location.pathname;
-  const fields  = getInteractiveFields(form);
-  const tokens  = fields.map(f => `${f.key}:${f.type}`);
-  const formId  = generateFormId(urlKey, index, tokens);
-  const config  = await getFormConfig(formId);
+  const context = buildFormContext(form, index);
 
-  injectOverlay(form, config, formId, index, urlKey);
+  if (context.fields.length === 0) {
+    removeOverlay(form);
+    return;
+  }
+
+  const config  = await getFormConfigById(context.formId);
+
+  injectOverlay(form, config, context.formId, index, context.urlKey);
 
   if (config?.autoSeed) {
     fillFormRandom(form, config);
@@ -82,11 +61,8 @@ chrome.runtime.onMessage.addListener(
             const forms = Array.from(document.querySelectorAll<HTMLFormElement>('form'));
             const infos = await Promise.all(
               forms.map(async (form, i) => {
-                const urlKey  = window.location.hostname + window.location.pathname;
-                const fields  = getInteractiveFields(form);
-                const tokens  = fields.map(f => `${f.key}:${f.type}`);
-                const formId  = generateFormId(urlKey, i, tokens);
-                const config  = await getFormConfig(formId);
+                const context = buildFormContext(form, i);
+                const config  = await getFormConfigById(context.formId);
                 return buildFormInfo(form, i, config);
               }),
             );
@@ -99,11 +75,8 @@ chrome.runtime.onMessage.addListener(
             const form  = forms[request.formIndex];
             if (!form) { sendResponse({ success: false, error: 'Form not found' }); return; }
 
-            const urlKey = window.location.hostname + window.location.pathname;
-            const fields = getInteractiveFields(form);
-            const tokens = fields.map(f => `${f.key}:${f.type}`);
-            const formId = generateFormId(urlKey, request.formIndex, tokens);
-            const config = await getFormConfig(formId);
+            const context = buildFormContext(form, request.formIndex);
+            const config = await getFormConfigById(context.formId);
 
             if (request.method === 'random' || request.method === 'seeded') {
               fillFormRandom(form, config);

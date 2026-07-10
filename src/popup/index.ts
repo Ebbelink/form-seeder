@@ -7,20 +7,18 @@
  */
 
 import {
-  loadConfig,
-  saveFormConfig,
-  upsertNamedFill,
-  deleteNamedFill,
-  exportConfigJson,
-  importConfigJson,
-} from '../utils/configManager';
+  deleteNamedFillFromForm,
+  exportConfigurationJson,
+  importConfigurationJson,
+  saveFormConfiguration,
+} from '../services/configService';
+import { saveNamedFill } from '../services/namedFillService';
 import {
-  ExtensionConfig,
-  FormConfig,
   FieldConfig,
+  FormConfig,
   NumberFieldConfig,
-  TextFieldConfig,
   PrimitiveOverride,
+  TextFieldConfig,
 } from '../types/config';
 import { FormInfo, MessageRequest, MessageResponse } from '../types/messages';
 
@@ -204,7 +202,7 @@ function buildNamedFillsPanel(formInfo: FormInfo, onUpdate: () => void): HTMLDiv
       const item   = el('div', { className: 'named-fill-item' });
       const name   = el('span', { className: 'named-fill-name' }, fill.name);
       const delBtn = btn('✕', 'btn-ghost', async () => {
-        await deleteNamedFill(formInfo.id, fill.name);
+        await deleteNamedFillFromForm(formInfo.id, fill.name);
         if (formInfo.config) {
           formInfo.config.namedFills = formInfo.config.namedFills.filter(nf => nf.name !== fill.name);
         }
@@ -223,17 +221,16 @@ function buildNamedFillsPanel(formInfo: FormInfo, onUpdate: () => void): HTMLDiv
     try {
       const res = await sendToContent<Record<string, string>>({ type: 'GET_FORM_VALUES', formIndex: formInfo.index });
       if (!res.success || !res.data) { alert('Could not read form values.'); return; }
-      await upsertNamedFill(formInfo.id, { name: name.trim(), values: res.data });
-      if (!formInfo.config) {
-        formInfo.config = {
-          id: formInfo.id, urlPattern: location.href, formIndex: formInfo.index,
-          fields: [], namedFills: [], autoSeed: false,
-        };
-      }
-      const existIdx = formInfo.config.namedFills.findIndex(nf => nf.name === name.trim());
-      const newFill  = { name: name.trim(), values: res.data };
-      if (existIdx >= 0) formInfo.config.namedFills[existIdx] = newFill;
-      else formInfo.config.namedFills.push(newFill);
+      const nextConfig = await saveNamedFill({
+        formId: formInfo.id,
+        formIndex: formInfo.index,
+        urlPattern: location.hostname + location.pathname,
+        currentConfig: formInfo.config,
+        defaultFields: formInfo.fields.map(f => ({ inputName: f.name, inputType: f.type })),
+        fillName: name,
+        values: res.data,
+      });
+      formInfo.config = nextConfig;
       renderList();
       onUpdate();
     } catch {
@@ -344,7 +341,7 @@ function renderFormItem(formInfo: FormInfo, onUpdate: () => void): HTMLDivElemen
       autoSeed:    autoSeedCb.checked,
     };
     try {
-      await saveFormConfig(newFormConfig);
+      await saveFormConfiguration(newFormConfig);
       formInfo.config = newFormConfig;
       // Show seeded button if not already
       if (!actionRow.contains(fillSeedBtn)) actionRow.insertBefore(fillSeedBtn, configBtn);
@@ -383,7 +380,7 @@ function renderForms(): void {
 // ─── Import / Export ──────────────────────────────────────────────────────────
 
 async function handleExport(): Promise<void> {
-  const json = await exportConfigJson();
+  const json = await exportConfigurationJson();
   const blob = new Blob([json], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
@@ -395,7 +392,7 @@ async function handleExport(): Promise<void> {
 
 async function handleImport(file: File): Promise<void> {
   const text = await file.text();
-  await importConfigJson(text);
+  await importConfigurationJson(text);
   alert('Config imported successfully! Reload the page to see changes.');
 }
 
