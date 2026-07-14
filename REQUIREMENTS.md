@@ -1,7 +1,12 @@
 ## Acceptance Criteria Checklist
 
 Mark each item done only with objective evidence.
+When implementing a new acceptance criteria:
+- Check if it interferes with already defined acceptance criteria
+  - if it does ask the user what to do
+  - if it does not interfere add it to the list bellow as acceptance criteria
 
+## Acceptance criteria
 1. Unconfigured forms fill with type-based random values.
 2. Popup lists all forms in the current DOM.
 3. User can save current form values as a named fill.
