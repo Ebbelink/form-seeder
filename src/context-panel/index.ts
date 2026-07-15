@@ -86,11 +86,11 @@ const OVERRIDE_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'password',     label: 'Password' },
 ];
 
-function buildFieldRow(field: FormInfo['fields'][number], existing?: FieldConfig): HTMLDivElement {
+function buildFieldRow(field: FormInfo['fields'][number], existing?: FieldConfig): HTMLDetailsElement {
   const existing_  = existing ?? { inputName: field.name, inputType: field.type };
-  const row        = el('div', { className: 'field-row' });
-  const top        = el('div', { className: 'field-top' });
-  const nameLbl    = el('span', { className: 'field-name' }, field.name);
+  const row        = el('details', { className: 'field-row' }) as HTMLDetailsElement;
+  const summary    = el('summary', { className: 'field-top' });
+  const nameLbl    = el('span', { className: 'field-name' }, "⮛ " + field.name);
   const typeBadge  = el('span', { className: 'field-type-badge' }, field.type);
 
   const select = el('select', { className: 'field-select' });
@@ -100,8 +100,8 @@ function buildFieldRow(field: FormInfo['fields'][number], existing?: FieldConfig
     select.appendChild(o);
   }
 
-  top.append(nameLbl, typeBadge, select);
-  row.append(top);
+  summary.append(nameLbl, typeBadge, select);
+  row.append(summary);
 
   // Type-specific config panels (shown/hidden based on override selection)
   const numberCfg = buildNumberConfig(existing_.numberConfig);
@@ -153,7 +153,7 @@ function buildTextConfig(existing?: TextFieldConfig): HTMLDivElement {
   return wrap;
 }
 
-function readFieldConfig(row: HTMLDivElement, field: FormInfo['fields'][number]): FieldConfig {
+function readFieldConfig(row: HTMLElement, field: FormInfo['fields'][number]): FieldConfig {
   const select       = row.querySelector<HTMLSelectElement>('.field-select')!;
   const overrideType = select.value as PrimitiveOverride | '';
 
@@ -219,7 +219,6 @@ function buildNamedFillsPanel(formInfo: FormInfo, onUpdate: () => void): { panel
 }
 
 // ─── Form item rendering ──────────────────────────────────────────────────────
-
 function renderFormItem(formInfo: FormInfo, onUpdate: () => void): HTMLDivElement {
   const item = el('div', { className: 'form-item' });
 
@@ -312,22 +311,22 @@ function renderFormItem(formInfo: FormInfo, onUpdate: () => void): HTMLDivElemen
   toggleRow.append(autoSeedCb, autoSeedLbl);
   configPanel.append(toggleRow);
 
+  // Named fills panel
+  const { panel: namedFillsPanel, refreshList } = buildNamedFillsPanel(formInfo, () => { renderNamedFillTags(); });
+  refreshNamedFillsList = refreshList;
+  configPanel.append(namedFillsPanel);
+
   // Fields list
   const fieldsTitle = el('h3', {}, 'Fields');
   configPanel.append(fieldsTitle);
   const fieldsList = el('div', { className: 'fields-list' });
-  const fieldRows: HTMLDivElement[] = formInfo.fields.map(f => {
+  const fieldRows: HTMLElement[] = formInfo.fields.map(f => {
     const existingFieldCfg = formInfo.config?.fields.find(fc => fc.inputName === f.name);
     const row = buildFieldRow(f, existingFieldCfg);
     fieldsList.append(row);
     return row;
   });
   configPanel.append(fieldsList);
-
-  // Named fills panel
-  const { panel: namedFillsPanel, refreshList } = buildNamedFillsPanel(formInfo, () => { renderNamedFillTags(); });
-  refreshNamedFillsList = refreshList;
-  configPanel.append(namedFillsPanel);
 
   // Save config button
   const saveRow = el('div', { className: 'save-row' });

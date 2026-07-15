@@ -8,7 +8,7 @@ module.exports = (_env, argv = {}) => {
   entry: {
     background: './src/background/index.ts',
     content: './src/page-runtime/index.ts',
-    popup: './src/control-panel/index.ts',
+    popup: './src/context-panel/index.ts',
   },
   output: {
     path: path.resolve(__dirname, 'dist'),
@@ -36,8 +36,8 @@ module.exports = (_env, argv = {}) => {
     new CopyPlugin({
       patterns: [
         { from: 'manifest.json', to: 'manifest.json' },
-        { from: 'src/control-panel/popup.html', to: 'popup.html' },
-        { from: 'src/control-panel/popup.css', to: 'popup.css' },
+        { from: 'src/context-panel/popup.html', to: 'popup.html' },
+        { from: 'src/context-panel/popup.css', to: 'popup.css' },
         { from: 'icons', to: 'icons' },
       ],
     }),
