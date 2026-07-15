@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Form Seeder",
+  "version": "1.0.0",
+  "description": "Fill forms with random or configured data. Share configs with your team.",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Form Seeder",
+    "default_icon": "icons/form-seeder-icon.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
