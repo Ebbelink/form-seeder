@@ -88,8 +88,8 @@ No implementation should start before steps 1 and 2 are complete.
 
 ## File Ownership Guide
 
-1. src/content/*: form detection, overlay UI, page-side fill logic.
-2. src/popup/*: user-facing configuration and named-fill management.
+1. src/page-runtime/*: form detection, overlay UI, page-side fill logic.
+2. src/control-panel/*: user-facing configuration and named-fill management.
 3. src/utils/configManager.ts: storage IO and config persistence helpers.
 4. src/utils/formId.ts: stable form and field identity.
 5. src/types/*: strongly typed contracts for config and messages.

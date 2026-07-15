@@ -225,7 +225,7 @@ function renderFormItem(formInfo: FormInfo, onUpdate: () => void): HTMLDivElemen
 
   // ── Header row ────────────────────────────────────────────────────────────
   const header  = el('div', { className: 'form-header' });
-  const nameEl  = el('span', { className: 'form-name' }, formInfo.name);
+  const nameEl  = el('span', { className: 'form-name' }, "Form → " + formInfo.name);
   const metaEl  = el('span', { className: 'form-meta' }, `${formInfo.fieldCount} field${formInfo.fieldCount !== 1 ? 's' : ''}`);
   header.append(nameEl, metaEl);
   item.append(header);
