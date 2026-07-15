@@ -373,7 +373,9 @@ function renderForms(): void {
   container.innerHTML = '';
 
   for (const form of forms) {
+    if (form.fields.length > 0) {
     container.append(renderFormItem(form, () => {}));
+    }
   }
   showState('formsList');
 }

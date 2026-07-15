@@ -33,7 +33,7 @@ jobs:
         run: npm ci
 
       - name: Build extension
-        run: npm run build
+        run: npm run build:local
 
       - name: Validate DEV environment key availability
         run: |

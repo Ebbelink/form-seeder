@@ -1,7 +1,10 @@
 const path = require('path');
 const CopyPlugin = require('copy-webpack-plugin');
 
-module.exports = {
+module.exports = (_env, argv = {}) => {
+  const isProduction = argv.mode === 'production';
+
+  return {
   entry: {
     background: './src/background/index.ts',
     content: './src/page-runtime/index.ts',
@@ -24,6 +27,11 @@ module.exports = {
   resolve: {
     extensions: ['.ts', '.js'],
   },
+  devtool: isProduction ? false : 'source-map',
+  optimization: {
+    // Keep local/dev output readable for unpacked-extension debugging.
+    minimize: isProduction,
+  },
   plugins: [
     new CopyPlugin({
       patterns: [
@@ -34,4 +42,5 @@ module.exports = {
       ],
     }),
   ],
+  };
 };

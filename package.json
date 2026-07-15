@@ -4,7 +4,9 @@
   "description": "Configurable form seeder Chrome extension - fill forms with random or configured data",
   "scripts": {
     "build": "webpack --mode production",
+    "build:local": "webpack --mode development",
     "dev": "webpack --mode development --watch",
+    "dev:local": "webpack --mode development --watch",
     "package": "cd dist && Compress-Archive -Path . -DestinationPath ../form-seeder.zip",
     "package:ci": "cd dist && zip -r ../form-seeder.zip ."
   },

@@ -4,7 +4,7 @@
     {
       "label": "Build",
       "type": "shell",
-      "command": "npm run build",
+      "command": "npm run build:local",
       "group": {
         "kind": "build",
         "isDefault": true
@@ -18,7 +18,7 @@
     {
       "label": "Dev (watch)",
       "type": "shell",
-      "command": "npm run dev",
+      "command": "npm run dev:local",
       "group": "build",
       "isBackground": true,
       "presentation": {
