@@ -185,7 +185,7 @@ function readFieldConfig(row: HTMLDivElement, field: FormInfo['fields'][number])
 
 // ─── Named fills panel ────────────────────────────────────────────────────────
 
-function buildNamedFillsPanel(formInfo: FormInfo, onUpdate: () => void): HTMLDivElement {
+function buildNamedFillsPanel(formInfo: FormInfo, onUpdate: () => void): { panel: HTMLDivElement; refreshList: () => void } {
   const wrap   = el('div', { className: 'named-fills-config' });
   const title  = el('h4', {}, 'Named Fills');
   const list   = el('div', { className: '', 'data-nf-list': '' });
@@ -215,31 +215,7 @@ function buildNamedFillsPanel(formInfo: FormInfo, onUpdate: () => void): HTMLDiv
   }
   renderList();
 
-  const saveBtn = btn('💾 Save Current Values as Named Fill', 'btn btn-secondary', async () => {
-    const name = prompt('Enter a name for this fill:');
-    if (!name?.trim()) return;
-    try {
-      const res = await sendToContent<Record<string, string>>({ type: 'GET_FORM_VALUES', formIndex: formInfo.index });
-      if (!res.success || !res.data) { alert('Could not read form values.'); return; }
-      const nextConfig = await saveNamedFill({
-        formId: formInfo.id,
-        formIndex: formInfo.index,
-        urlPattern: location.hostname + location.pathname,
-        currentConfig: formInfo.config,
-        defaultFields: formInfo.fields.map(f => ({ inputName: f.name, inputType: f.type })),
-        fillName: name,
-        values: res.data,
-      });
-      formInfo.config = nextConfig;
-      renderList();
-      onUpdate();
-    } catch {
-      alert('Error saving fill. Is the extension active on this page?');
-    }
-  });
-  saveBtn.style.marginTop = '6px';
-  wrap.append(saveBtn);
-  return wrap;
+  return { panel: wrap, refreshList: renderList };
 }
 
 // ─── Form item rendering ──────────────────────────────────────────────────────
@@ -275,9 +251,33 @@ function renderFormItem(formInfo: FormInfo, onUpdate: () => void): HTMLDivElemen
     configBtn.textContent = configPanelVisible ? '✕ Close' : '⚙ Configure';
   });
 
+  let refreshNamedFillsList: () => void = () => {};
+  const saveFillBtn = btn('💾 Save Fill', 'btn-secondary', async () => {
+    const name = prompt('Enter a name for this fill:');
+    if (!name?.trim()) return;
+    try {
+      const res = await sendToContent<Record<string, string>>({ type: 'GET_FORM_VALUES', formIndex: formInfo.index });
+      if (!res.success || !res.data) { alert('Could not read form values.'); return; }
+      const nextConfig = await saveNamedFill({
+        formId: formInfo.id,
+        formIndex: formInfo.index,
+        urlPattern: location.hostname + location.pathname,
+        currentConfig: formInfo.config,
+        defaultFields: formInfo.fields.map(f => ({ inputName: f.name, inputType: f.type })),
+        fillName: name,
+        values: res.data,
+      });
+      formInfo.config = nextConfig;
+      refreshNamedFillsList();
+      renderNamedFillTags();
+    } catch {
+      alert('Error saving fill. Is the extension active on this page?');
+    }
+  });
+
   actionRow.append(fillRndBtn);
   if (formInfo.config) actionRow.append(fillSeedBtn);
-  actionRow.append(configBtn);
+  actionRow.append(saveFillBtn, configBtn);
   item.append(actionRow);
 
   // ── Named fill tags ───────────────────────────────────────────────────────
@@ -325,8 +325,9 @@ function renderFormItem(formInfo: FormInfo, onUpdate: () => void): HTMLDivElemen
   configPanel.append(fieldsList);
 
   // Named fills panel
-  const onFillUpdate = () => { renderNamedFillTags(); };
-  configPanel.append(buildNamedFillsPanel(formInfo, onFillUpdate));
+  const { panel: namedFillsPanel, refreshList } = buildNamedFillsPanel(formInfo, () => { renderNamedFillTags(); });
+  refreshNamedFillsList = refreshList;
+  configPanel.append(namedFillsPanel);
 
   // Save config button
   const saveRow = el('div', { className: 'save-row' });
